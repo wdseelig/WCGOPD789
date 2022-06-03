@@ -1,0 +1,3 @@
+name = Commerce GOP Checkout
+description = "Provide our own checkout form to Commerce"
+core = 7.x

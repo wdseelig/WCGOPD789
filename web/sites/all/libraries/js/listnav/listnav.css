@@ -1,0 +1,107 @@
+CREATE TABLE `wcgopindividualinfo` (
+  `info_id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT 'The primary identifier.',
+  `gop_id` int(10) unsigned DEFAULT NULL COMMENT 'Legacy data identifier',
+  `LastName` varchar(255) NOT NULL DEFAULT '' COMMENT 'The last name of the contact',
+  `FirstName` varchar(255) NOT NULL DEFAULT '' COMMENT 'The first name of the contact',
+  `MiddleName` varchar(255) DEFAULT NULL COMMENT 'The contact’s middle name',
+  `PrimaryAddress1` varchar(255) DEFAULT NULL COMMENT 'The contact’s street address',
+  `PrimaryCity` varchar(255) DEFAULT NULL COMMENT 'The city in which the contact is registered',
+  `PrimaryState` varchar(255) DEFAULT NULL COMMENT 'The state in which the contact lives',
+  `PrimaryZip` varchar(10) DEFAULT NULL COMMENT 'The contact’s zip code',
+  `PrimaryZip4` varchar(10) DEFAULT NULL COMMENT 'The contact’s 9 digit zip code',
+  `PrimaryHouseNumber` varchar(255) DEFAULT NULL COMMENT 'The contact’s House Number',
+  `PrimaryHouseHalf` varchar(255) DEFAULT NULL COMMENT 'The house half number',
+  `PrimaryStreetName` varchar(255) DEFAULT NULL COMMENT 'The contact’s Street Name',
+  `PrimaryStreetType` varchar(255) DEFAULT NULL COMMENT 'The type of street (road, avenue, etc.) on which the contact lives',
+  `PrimaryUnit` varchar(255) DEFAULT NULL COMMENT 'The type of living quarter: Unit, Apt. , etc.',
+  `PrimaryUnitNumber` varchar(255) DEFAULT NULL COMMENT 'The number of the unit, apartment, etc.',
+  `PrimaryPhone` varchar(255) DEFAULT NULL COMMENT 'The contact’s telephone number',
+  `HasPrimaryPhone` tinyint(4) DEFAULT NULL COMMENT 'TRUE/FALSE indicating whether has phone',
+  `DOB` varchar(255) DEFAULT NULL COMMENT 'Date of Birth (just the year)',
+  `Age` smallint(6) DEFAULT NULL COMMENT 'Column Description',
+  `Gender` varchar(5) DEFAULT NULL COMMENT 'Gender',
+  `ObservedParty` varchar(255) DEFAULT NULL COMMENT 'This is not used in Michigan',
+  `OfficialParty` varchar(255) DEFAULT NULL COMMENT 'This is always unaffliated in Michigan',
+  `CalculatedParty` varchar(255) DEFAULT NULL COMMENT 'RNC estimate of the contact political affiliation',
+  `GeneralFrequency` tinyint(4) DEFAULT NULL COMMENT 'Number of last 4 generals in which contact has voted',
+  `CDName` varchar(5) DEFAULT NULL COMMENT 'Congressional District Number',
+  `LDName` varchar(5) DEFAULT NULL COMMENT 'Michigan State House District Number',
+  `SDName` varchar(5) DEFAULT NULL COMMENT 'Michigan State Senate District Number',
+  `CountyName` varchar(20) DEFAULT NULL COMMENT 'The County in which the contact lives',
+  `PrecinctNumber` varchar(20) DEFAULT NULL COMMENT 'A 10 digit string of the precinct number',
+  `PrecinctName` varchar(255) DEFAULT NULL COMMENT 'The name of the city, ward, and precinct',
+  `VoterKey` varchar(255) DEFAULT NULL COMMENT 'Not sure what this is',
+  `HHRecId` varchar(255) DEFAULT NULL COMMENT 'A number that identifes the household',
+  `HHMemberId` varchar(10) DEFAULT NULL COMMENT 'An index for which household member this is',
+  `HHCode` varchar(5) DEFAULT NULL COMMENT 'H, M, or S indicating head, member, or single family',
+  `JurisdictionVoterId` varchar(255) DEFAULT NULL COMMENT 'An RNC voter id that tracks when voter moves?',
+  `ClientID` varchar(255) DEFAULT NULL COMMENT 'No idea what this is',
+  `RNCRegId` varchar(255) DEFAULT NULL COMMENT 'Same as JurisdictionVoterID?',
+  `StateVoterID` bigint(20) DEFAULT NULL COMMENT 'The contact QVF number',
+  `StateEthnicity` varchar(255) DEFAULT NULL COMMENT 'No Data Provided for Michigan',
+  `CellularPhone` varchar(20) DEFAULT NULL COMMENT 'WCGOP input for cell phone',
+  `HomePhone` varchar(20) DEFAULT NULL COMMENT 'WCGOP input for home phone',
+  `WorkPhone` varchar(20) DEFAULT NULL COMMENT 'WCGOP input for work phone',
+  `Township` varchar(255) DEFAULT NULL COMMENT 'Township or City Name',
+  `CountyCommissionerDistrict` varchar(255) DEFAULT NULL COMMENT 'The contact CC district',
+  `email` varchar(255) DEFAULT NULL COMMENT 'The email field description in schema',
+  PRIMARY KEY (`info_id`),
+  KEY `lastname` (`LastName`(10)),
+  KEY `house` (`LDName`),
+  KEY `senate` (`SDName`),
+  KEY `cd` (`CDName`),
+  KEY `qvf` (`StateVoterID`),
+  KEY `gop` (`gop_id`),
+  KEY `ccd` (`CountyCommissionerDistrict`(20))
+) ENGINE=InnoDB AUTO_INCREMENT=376290 DEFAULT CHARSET=utf8 COMMENT='The base table for wcgopindividualinfo.'/*
+	STYLE SHEET FOR JQUERY LISTNAV PLUGIN V 3.0.0, 11/22/2017
+	For more information, visit http://esteinborn.github.com/jquery-listnav
+*/
+.listNav,
+.ln-letters {
+  overflow: hidden;
+}
+
+.listNavHide {
+ display: none;
+}
+
+.letterCountShow {
+  display: block;
+}
+
+.ln-letters a {
+  border: 1px solid silver;
+  border-right: none;
+  display: block;
+  float: left;
+  font-size: .9em;
+  padding: 2px 6px;
+  text-decoration: none;
+}
+
+.ln-letters .ln-last {
+  border-right: 1px solid silver;
+}
+
+.ln-letters a:hover,
+.ln-letters .ln-selected {
+  background-color: #eaeaea;
+}
+
+.ln-letters .ln-disabled {
+  color: #ccc;
+}
+
+.ln-letter-count {
+  color: #336699;
+  font-size: .8em;
+  left: 0;
+  line-height: 1.35;
+  position: absolute;
+  text-align: center;
+  top: 0;
+  width: 20px;
+}
+
+/*# sourceMappingURL=listnav.css.map */

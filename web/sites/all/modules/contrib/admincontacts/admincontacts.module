@@ -1,0 +1,876 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * A module created December 2018 to January 2019 to administer WCGOP contacts.
+ */
+/**
+ * Make sure that the necessary javascript files are available on the page
+ */
+
+function admincontacts_js_alter(&$javascript) {
+
+    if ($_GET['q'] !== 'admincontacts')
+        return;
+    $javascript['misc/jquery.js']['data'] =
+        drupal_get_path('module', 'jquery_update') .
+        '/replace/jquery/1.10/jquery.js';
+
+    $javascript['misc/drupal.js']['weight'] = -5;
+    $javascript['misc/ajax.js']['weight'] = -3;
+    $x = $x + 2;
+}
+/**
+ * Implements hook_menu().
+ */
+function admincontacts_menu() {
+  $items['admincontacts'] = array(
+    'title' => 'Administer Contacts',
+    'description' => 'A module to administer WCGOP contacts',
+    'page callback' => 'admincontacts_page',
+    'access arguments' => array('administer contacts'),
+  );
+    $items['admincontacts/mypath'] = array(
+        'title' => 'This is a callback function for a nojs page',
+        'description' => 'Demonstrates the use of the nojs callback',
+        'page callback' => 'admincontacts_ajax_callback',
+        'theme callback' => 'ajax_base_page_theme',
+        'access arguments' => array('access content'),
+        'type' => MENU_CALLBACK,
+    );
+    $items['admincontacts/individualinfo'] = array(
+        'title' => 'Individual',
+        'description' => 'Routine to fill in individual information',
+        'page callback' => 'admincontacts_individualinfo',
+        'access arguments' => array('administer contacts'),
+        'type' => MENU_CALLBACK,
+    );
+  return $items;
+}
+
+/**
+ * Implements hook_permissions
+ */
+function admincontacts_permission(){
+    return array (
+        'administer contacts' => array(
+            'title' => t('Administer Contacts module'),
+            'description' => 'Administer the WCGOP contacts system',
+        ),
+    );
+}
+/**
+ * We are doing our own theming.  The theme name is admincontacts_tpl
+ * and the theme template file is in theme/admincontacts.tpl.php
+ */
+function admincontacts_theme_registry_alter(&$theme_registry) {
+    return;
+}
+function admincontacts_theme (){
+	return array(
+	    'admincontacts_myaddedfields' => array(
+        'render element' => 'element'
+    ),
+		'admincontacts_tpl' => array(
+			'arguments' => array('output' => NULL,
+                        'output2' => NULL,
+                        'output3' => NULL,
+                        'output4' => NULL,
+                        'output5' => NULL,
+            ),
+			'path' => drupal_get_path('module', 'admincontacts') . '/theme',
+			'template' => 'admincontacts'
+		),
+        'admincontacts_addressblock' => array(
+            'arguments' => array('output' => NULL,
+                'output2' => NULL,
+                'output3' => NULL
+            ),
+            'path' => drupal_get_path('module', 'admincontacts') . '/theme',
+            'template' => 'addressblock'
+        ),
+        'admincontacts_contactblock' => array(
+            'arguments' => array('output' => NULL,
+                'output2' => NULL,
+                'output3' => NULL
+            ),
+            'path' => drupal_get_path('module', 'admincontacts') . '/theme',
+            'template' => 'contactblock'
+        ),
+        'admincontacts_tagblock' => array(
+            'arguments' => array('output' => NULL,
+                'output2' => NULL,
+                'output3' => NULL
+            ),
+            'path' => drupal_get_path('module', 'admincontacts') . '/theme',
+            'template' => 'tagblock'
+        ),
+        'admincontacts_activetagblock' => array(
+            'arguments' => array('output' => NULL,
+                'output2' => NULL,
+                'output3' => NULL
+            ),
+            'path' => drupal_get_path('module', 'admincontacts') . '/theme',
+            'template' => 'activetagblock'
+        ),
+
+);
+}
+
+function theme_admincontacts_myaddedfields ($vars)
+{
+    $element = $vars['element'];
+    $rows = array();
+    $children = element_children($element);
+
+    foreach ($children as $key => $value) {
+            $rows[] = array(
+                array('data' => $children[$key]),
+                array('data' => render($element[$value])),
+            );
+
+    }
+    $header = array(t('Field Label'), t('Input'));
+    return theme('table', array('header' => $header, 'rows' => $rows));
+}
+function admincontacts_addedfieldsV2($form, &$form_state) {
+    $form['Title'] = array(
+        '#markup' => '<h4>     Information to be added to this individual</h4>',
+    );
+    $form['Email'] = array(
+        '#title' => t('E-Mail'),
+        '#type' => 'textfield',
+        '#default_value' => 0,
+        '#maxlength' => 40,
+        '#size' => 30,
+        '#label' => 'Field1',
+        '#name' => 'Email',
+    );
+    $form['Phone'] = array(
+        '#title' => t('Phone'),
+        '#type' => 'textfield',
+        '#default_value' => 0,
+        '#maxlength' => 30,
+        '#size' => 30,
+        '#label' => 'Field2',
+        '#name' => 'Phone',
+    );
+    $form['submit'] = array(
+        '#type' => 'submit',
+        '#ajax' => array('callback' => 'admincontacts_addedfields_submit'),
+        '#value' => 'Add new information to individual',
+    );
+    return $form;
+
+}
+
+function admincontacts_addedfields($form, &$form_state){
+    $form['Title'] = array(
+        '#markup' => '<h4>     Information to be added to this contact</h4>',
+    );
+    $form['things'] = array(
+        '#tree' => TRUE,
+        '#theme' => 'admincontacts_myaddedfields',
+        '#title' => 'Information to be Added',
+    );
+    $form['things']['Email'] = array(
+        '#type' => 'textfield',
+        '#default_value' => 0,
+        '#maxlength' => 30,
+        '#size' => 30,
+        '#label' => 'Field1',
+        '#name' => 'Email',
+         );
+    $form['things']['Phone'] = array(
+        '#type' => 'textfield',
+        '#default_value' => 0,
+        '#maxlength' => 30,
+        '#size' => 30,
+        '#label' => 'Field2',
+        '#name' => 'Phone',
+        );
+    $form['submit'] = array(
+        '#type' => 'submit',
+        '#ajax' => array('callback' => 'admincontacts_addedfields_submit'),
+        '#value' => 'Add to contact',
+    );
+    return $form;
+}
+/**
+ * A theme pre-process function that adds in the css used by this theme
+ */
+function template_preprocess_admincontacts_tpl(&$variables){
+    $x = 1;
+    drupal_add_css(drupal_get_path('module', 'admincontacts') .
+        '/css/Normalize.css');
+    drupal_add_css(drupal_get_path('module', 'admincontacts') .
+        '/css/admincontacts.css');
+    return;
+}
+
+/**
+ * @param $variables
+ * Construct the contact's address block including the type of
+ * contact that this is
+ */
+function template_preprocess_admincontacts_addressblock(&$variables){
+    drupal_add_css(drupal_get_path('module', 'admincontacts') .
+        '/css/admincontacts.css');
+    $contact = $variables['info']->info_id;
+    $info = $variables['info'];
+    if ($variables['contact']) {
+        if ($info->gop_id > 0) {
+            if ($info->PrecinctName <> "") {
+                $cstatus = 'Contact, Legacy, Matched';
+            } //Wyckham Seelig
+            else {
+                $cstatus = 'Contact, Legacy, UnMatched';  // Jane Abraham
+            }
+        } else {
+            $cstatus = 'Contact, Non-Legacy';  // John Taylor
+        }
+    } else {
+        if ($info->gop_id > 0){
+            $cstatus = 'Legacy, Non-Contact';
+        }
+        else {
+            $cstatus = 'Non-Legacy, Non-Contact';
+        }
+    }
+    $variables['status'] = $cstatus;
+    return;
+}
+/*
+ * Construct the contact's contact information block: phone numbers email, etc.
+ */
+function template_preprocess_admincontacts_contactblock(&$variables){
+    drupal_add_css(drupal_get_path('module', 'admincontacts') .
+        '/css/admincontacts.css');
+    $info = $variables['info'];
+    $attributes['caption'] = array('Contact Information');
+    $headers = array('Channel', 'Address/Number');
+    if ($info->email <> "") {
+        $rows[] = array('Email', $info->email);
+    }
+    if ($info->PrimaryPhone <> "")
+        $rows[] = array('PrimaryPhone (QVF)', $info->PrimaryPhone);
+    if ($info->CellularPhone <> "")
+        $rows[] = array('Cellular Phone', $info->CellularPhone);
+    if ($info->WorkPhone <> "")
+        $rows[] = array('Work Phone', $info->WorkPhone);
+    if ($info->HomePhone <> "")
+        $rows[] = array('HomePhone', $info->HomePhone);
+    $ctable = theme('table', array('header' => $headers, 'rows' =>$rows,
+        'attributes' => $attributes));
+    $variables['status'] = $ctable;
+    return;
+}
+function template_preprocess_admincontacts_tagblock(&$variables){
+$contact = $variables['contact'];
+$cid = $contact;
+$x = 1;
+if ($cid) {
+    $query = 'SELECT fdft.entity_id, fdft.field_tagswithhhsv2_tid, tth.parent, ttd.name AS parentname, ttd2.name AS childname 
+  FROM field_data_field_tagswithhhsv2 fdft  INNER JOIN taxonomy_term_hierarchy tth 
+  ON fdft.field_tagswithhhsv2_tid = tth.tid INNER JOIN taxonomy_term_data AS ttd 
+  ON tth.parent = ttd.tid INNER JOIN taxonomy_term_data AS ttd2
+  ON tth.tid=ttd2.tid WHERE fdft.entity_id= ' . $cid . ' ORDER BY tth.parent';
+    $result = db_query($query);
+    $headers = array('Tag Category', 'Tag');
+    $rows = array();
+    foreach ($result as $record) {
+        $rows[] = array($record->parentname, $record->childname);
+    }
+    $addclass = array();
+    $addclass['class'] = array('tagtable');
+    $tagtable = theme('table', array('header' => $headers, 'rows' => $rows, 'attributes' => $addclass));
+    $tagtable = '<h6>Existing Tags</h6>' . $tagtable;
+    $variables['status'] = $tagtable;
+}
+return;
+}
+function template_preprocess_admincontacts_activetagblock(&$variables) {
+    global $user;
+    $x = 1;
+    $query = "SELECT userid, tagid FROM crm_admin WHERE userid = " .
+        $user->uid;
+    $result = db_query($query);
+    $headers = array("Tag Category", "Tag", "Do Not Use");
+    $rows = array();
+    $addClass = array();
+    $addClass['class'] = array('tagtable');
+    $checkboxvar = '<input type="checkbox", value="a">';
+    foreach ($result as $record) {
+        $term = taxonomy_term_load($record->tagid);
+        $parent = reset(taxonomy_get_parents($record->tagid))->name;
+        $rows[] = array($parent, $term->name, $checkboxvar);
+    }
+    $activetagtable = theme('table', array('header' => $headers, 'rows' => $rows,
+        'attributes' => $addClass) );
+    $variables['status'] = $activetagtable;
+    return;
+}
+/**
+ * Page construction routines.  Minimal because ajax callbacks fill out
+ * everything except the down-select form.  Note, though, that we have to
+ * make sure that the right js in the right order is loaded on the page.
+ */
+function admincontacts_page()
+{
+    global $user;
+  drupal_add_js('https://www.wash-gop.com/sites/all/modules/contrib/admincontacts' .
+      '/js/admincontacts.js', array('weight' => -7));
+  drupal_add_js(drupal_get_path('module', 'hierarchical_select') . '/hierarchical_select.js',
+      array('group' => JS_THEME,
+             'weight' => 92));
+  drupal_add_js(drupal_get_path('module', 'hierarchical_select') . '/hierarchical_select_formtoarray.js',
+      array('group' => JS_THEME,
+            'weight' => 93));
+  drupal_add_js(drupal_get_path('module', 'hierarchical_select') . '/hierarchical_select_cache.js',
+      array('group' => JS_THEME,
+          'weight' => 94));
+  drupal_add_js(drupal_get_path('module', 'hierarchical_select'). '/includes/common_config_form.js',
+      array('group' => JS_THEME,
+          'weight' => 96));
+  drupal_add_css(drupal_get_path('module', 'admincontacts') . '/css/Normalize.css');
+  // $x = drupal_add_css(drupal_get_path('module', 'admincontacts') . '/css/Normalize.css');
+  require_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'hierarchical_select') . '/includes/common.inc';
+  drupal_add_js('misc/jquery.form.js', array('group' => JS_DEFAULT, 'weight' => 90));
+  drupal_add_js('misc/jquery.once.js',  array('group' => JS_DEFAULT, 'weight' => -9));
+
+    $options['attributes']['class'] = 'use-ajax';
+    $triallink = l('TrialLinkWithClass','admincontacts/individualinfo/nojs/100626', $options);
+    $triallink2 = '<br>' . l('TrialLinkWithClass','admincontacts/individualinfo/nojs/100000', $options);
+    $sform = drupal_get_form('admincontacts_selectform');
+    $tagform = drupal_get_form('admincontacts_tagselectorform');
+    $selectedtags = admincontacts_getsttable();
+    $output = theme('admincontacts_tpl', array('mysform' => $sform,
+            'dstable' => $downselecttable,
+            'tstable' => $tagform,
+            'sttable' => $selectedtags,
+            'username' => "<span class=adminname>" . $user->name . "</span><br>",
+        )
+    );
+    return $output;
+}
+/**
+ * @param $form
+ * @param $form_state
+ * @return mixed
+ *
+ * Defines the down-select form.  Note that we "ajaxify" the submit button on
+ * this form so that we can do an ajax_command_html in the submit routine to
+ * position the output where we want it.
+ */
+function admincontacts_selectform($form, &$form_state)
+{
+    //   $form['#attached']['library'][] = array('system', 'jquery.form');
+    $form['lastname'] = [
+        '#title' => t('Last Name'),
+        '#type' => 'textfield',
+        '#size' => 20,
+        '#required' => FALSE,
+        '#description' => 'Enter all/part of Last Name',
+        ];
+    $form['firstname'] = [
+        '#title' => t('First Name'),
+        '#type' => 'textfield',
+        '#size' => 20,
+        '#required' => FALSE,
+        '#description' => 'Enter all/part of First Name',
+        ];
+    $form['PrimaryAddress1'] = [
+        '#title' => t('Street Address'),
+        '#type' => 'textfield',
+        '#size' => 20,
+        '#required' => FALSE,
+        '#description' => 'Enter all/part of Street Address',
+        ];
+    $form['submit'] = [
+        '#type' => 'submit',
+        '#prefix' => '<br><br>',
+        '#ajax' => array('callback' => 'admincontacts_selectform_submit'),
+        '#value' => 'Click here to select the QVF+ entries that ' . 'match your criteria',
+        ];
+    return $form;
+}
+function admincontacts_updateform($form, &$form_state, $contact, $addressblock) {
+    global $user;
+    if ($contact) {
+        $thiscontact = entity_load_single('crm_core_contact', $contact);
+    }
+    $x = 1;
+    $form['addrblock'] = array(
+        '#markup' => $addressblock,
+    );
+    $query = "SELECT userid, tagid FROM crm_admin WHERE userid = " .
+        $user->uid;
+    $result = db_query($query);
+    $headers = array('tag_category' => t('Tag Category'), 'tag' => t('Tag'));
+    $options = array();
+    $addClass = array();
+    $addClass['class'] = array('tagtable');
+    $checkboxvar = '<input type="checkbox", value="a">';
+    foreach ($result as $record) {
+        $parent = reset(taxonomy_get_parents($record->tagid))->name;
+        $term = taxonomy_term_load($record->tagid);
+        $options[$record->tagid] = array('tag_category' => $parent, 'tag' => $term->name);
+    }
+    $form['table'] = array(
+        '#prefix' => '<div id=tagsr><h6>Activated Tags</h6>',
+        '#attributes' => array('class' => array('tagtable'), 'checked' => 'checked'),
+        '#type' => 'tableselect',
+        '#header' => $headers,
+        '#options' => $options,
+        '#suffix' => '</div>',
+    );
+    $form['notes']= array(
+        '#type' => 'textarea',
+        '#title' => t('Add or edit the notes for this contact'),
+        '#required' => FALSE,
+        '#default_value' => "",
+        '#description' =>
+            'This is where the notes for this contact go',
+        '#size' => 10,
+        '#maxlength' => 60,
+        '#prefix' => '<div id="notesfield">',
+        '#suffix' => '</div>',
+    );
+    $x = 1;
+    if ($thiscontact) {
+        $notetext = $thiscontact->notes;
+        $form['notes']['#value'] = $notetext;
+        $form['submitdelete'] = [
+            '#type' => 'submit',
+            '#name' => 'delete',
+            '#ajax' => array('callback' => 'admincontacts_updateform_ajaxcallback'),
+            '#value' => 'Delete this contact',
+        ];
+        $form['submitadd'] = [
+            '#type' => 'submit',
+            '#ajax' => array('callback' => 'admincontacts_updateform_ajaxcallback'),
+            '#name' => 'addtags',
+            '#value' => 'Update & add activated tags',
+        ];
+        $form['submitreplace'] = [
+            '#type' => 'submit',
+            '#name' => 'replacetags',
+            '#ajax' => array('callback' => 'admincontacts_updateform_ajaxcallback'),
+            '#value' => 'Update and replace tags with activated tags',
+        ];
+    }
+    else {
+        $form['addnewcontact'] = [
+            '#type' => 'submit',
+            '#name' => 'addcontact',
+            '#ajax' => array('callback' => 'admincontacts_updateform_ajaxcallback'),
+            '#value' => 'Add this contact',
+        ];
+
+    }
+
+    return $form;
+}
+function admincontacts_activetagsform($form, &$form_state) {
+    global $user;
+    $x = 1;
+    $query = "SELECT userid, tagid FROM crm_admin WHERE userid = " .
+        $user->uid;
+    $result = db_query($query);
+    $headers = array('tag_category' => t('Tag Category'), 'tag' => t('Tag'));
+    $options = array();
+    $addClass = array();
+    $addClass['class'] = array('tagtable');
+    $checkboxvar = '<input type="checkbox", value="a">';
+
+    foreach ($result as $record) {
+        $parent = reset(taxonomy_get_parents($record->tagid))->name;
+        $term = taxonomy_term_load($record->tagid);
+        $options[$record->tagid] = array('tag_category' => $parent, 'tag' => $term->name);
+    }
+    $form['table'] = array(
+        '#prefix' => '<div id=tagsr><h6>Activated Tags</h6>',
+        '#attributes' => array('class' => array('tagtable'), 'checked' => 'checked'),
+        '#type' => 'tableselect',
+        '#header' => $headers,
+        '#options' => $options,
+        '#suffix' => '</div>',
+    );
+    return $form;
+}
+
+/**
+ * @param $form
+ * @param $form_state
+ * @return mixed
+ *
+ * Defines the tag selector form.  Note that we "ajaxify" the submit button on
+ * this form so that we can do an ajax_command_html in the submit routine to
+ * position the output where we want it.
+ */
+function admincontacts_tagselectorform($form){
+    $tagtree = taxonomy_get_tree(8,0,1,FALSE);
+    $y = 3;
+    foreach ($tagtree as $parent){
+        $children = taxonomy_get_tree(8,$parent->tid,2,FALSE);
+        $y = 3;
+        $options = array();
+        foreach ($children as $child) {
+            $options[$child->tid] = $child->name;
+        }
+        $form[$parent->name] = array(
+            '#title' => '',
+            '#prefix' => '<h4 class=myaccordian>' . $parent->name . '</h4>',
+            '#type' => 'checkboxes',
+            '#options' => $options,
+        );
+
+    }
+    $form['submit'] = [
+        '#type' => 'submit',
+        '#prefix' => '<br><br>',
+        '#ajax' => array('callback' => 'admincontacts_tagselectorform_submit'),
+        '#value' => 'Click here to activate these tags',
+    ];
+    return $form;
+}
+/**
+ * @param $form
+ * @param $form_state
+ * @throws Exception
+ * The submit routine for the down-select form creates the table of voters that
+ * will be used to select the individual we want to examine in detail
+ */
+function admincontacts_selectform_submit($form, &$form_state) {
+    $query = 'SELECT info_id, LastName, FirstName, PrimaryAddress1, ' .
+        'PrimaryCity, PrecinctName FROM wcgopindividualinfo ' .
+        'WHERE LastName LIKE \'%' . $form_state['values']['lastname'] . '%\'' .
+        'AND FirstName LIKE \'%' . $form_state['values']['firstname']. '%\'' .
+        'AND PrimaryAddress1 LIKE \'%' .
+        $form_state['values']['PrimaryAddress1'] . '%\'' .
+        ' ORDER BY LastName, FirstName';
+    $result = db_query($query);
+    $headers = array('Name (Last, First)', 'Street Address', 'City',
+        'Precinct');
+    foreach ($result as $record) {
+        $addclass = array();
+        $addclass['class'] = 'use-ajax';
+        $options['attributes']['class'] = 'use-ajax';
+        $rows[] = array(l($record->LastName . ', ' . $record->FirstName,
+            'admincontacts/individualinfo/nojs/' . $record->info_id, $options),
+            $record->PrimaryAddress1, $record->PrimaryCity,
+            $record->PrecinctName);
+    }
+    $addclass = array();
+    $addclass['class'] = array('dstable');
+    $downselecttable = theme('table', array('header' => $headers,
+        'rows' => $rows, 'attributes' => $addclass));
+    $downselecttable = trim(str_replace(array("\r", "\n"),
+        "", $downselecttable));
+    $selector = '.admincontactsmiddleleft';
+    $commands = array();
+    $commands[] = ajax_command_css('.admincontactsrightcontainer', array('display' => 'none'));
+    $commands[] = ajax_command_html($selector,
+        $downselecttable );
+ //   $page=array ('#type' => 'ajax', '#commands' => $commands);
+    return (array('#type' => 'ajax', '#commands' =>  $commands));
+}
+function admincontacts_addedfields_submit($form, &$form_state) {
+    global $user;
+    $varname = "infoid_" . $user->uid;
+    $info_id = variable_get($varname);
+    $query = 'UPDATE wcgopindividualinfo SET ';
+    $eml = $form_state['input']['Email'];
+    $ph = $form_state['input']['Phone'];
+    if ($eml != "0"){
+        $query .= 'email = \'' . $eml . '\'';
+    }
+    if ($ph != "0"){
+        if ($eml != "0") {
+            $query .= ", ";
+        }
+        $query .= 'HomePhone = \'' . $ph . '\'';
+    }
+    $query .= ' WHERE info_id = ' . $info_id;
+    $result = db_query($query);
+    $query = 'SELECT * FROM wcgopindividualinfo WHERE ' . 'info_id = ' . $info_id;
+    $result = db_query($query);
+    $info = $result->fetchObject();
+    $contactblock = theme('admincontacts_contactblock', array(
+        'info' => $info,
+        'contact' => 'Blank',
+        'status' => 'Blank')
+    );
+    $contactblock = str_replace(array("\r", "\n"),"",$contactblock);
+    $commands = array();
+    $commands[] = ajax_command_replace('.contactblock', $contactblock);
+    return (array('#type' => 'ajax', '#commands' => $commands));
+}
+function admincontacts_tagselectorform_submit($form, &$form_state){
+    global $user;
+    if ($form_state['executed']) {
+        $parents = taxonomy_get_tree(8, 0, 1, FALSE);
+        $pnames = array();
+        foreach ($parents as $parent => $pn) {
+            $pnames[] = $pn->name;
+        }
+        $checkedterms = array();
+        foreach ($form_state["input"] as $entry => $item) {
+            if (in_array($entry, $pnames)) {
+                foreach ($item as $termid) {
+                    if ($termid != null) $checkedterms[] = $termid;
+                    $zz = 4;
+                }
+            }
+        }
+        $query = "DELETE FROM crm_admin WHERE userid=" . $user->uid;
+        db_query($query);
+        $query = "INSERT INTO crm_admin(userid, tagid) VALUES ";
+        $headers = array('Tag Category', 'Tag', 'Use');
+        $checkbox='<input type="checkbox">';
+        $rows = array();
+        $values = array();
+        foreach ($checkedterms as $termid) {
+            $query .= "(" . $user->uid . "," . $termid . "),";
+            $term = taxonomy_term_load($termid);
+            $parent = reset(taxonomy_get_parents($termid))->name;
+            $rows[] = array($parent, $term->name, $checkbox);
+            $y=1;
+            $values[] = array(
+                'userid' => $user->uid,
+                'tagid' => $termid,
+            );
+        }
+
+        $query = db_insert('crm_admin')->fields(array('userid', 'tagid'));
+        foreach ($values as $record) {
+            $query->values($record);
+        }
+        $query->execute();
+        $info_id = variable_get('infoid_' . $user->uid);
+        drupal_goto('admincontacts/individualinfo/nojs/' . $info_id);
+        $z = 1;
+        $activetagform = render($updateformvar);
+        $zz=3;
+        $addclass = array();
+        $addclass['class'] = array('tagtable');
+        $activetagtable = "<h5>Activated Tags</h5>";
+        $activetagtable .= theme('table', array('header' => $headers, 'rows' => $rows,
+            'attributes' => $addclass) );
+        $selector = '.updateform';
+        $commands = array();
+        $commands[] = ajax_command_html($selector, $activetagform);
+        return (array('#type' => 'ajax', '#commands' =>  $commands));
+    }
+}
+function admincontacts_updateform_submit($form, &$form_state)
+{
+    global $user;
+    $contact_id = $form_state['build_info']['args']['0'];  //$contact object (if there is one)
+    $info_id = $form_state['build_info']['args']['2'];
+    $x = 1;
+    if ($form_state['triggering_element']['#name'] === 'delete') {
+        entity_delete('crm_core_contact', $contact_id);
+        $form_state['build_info']['args']['0'] = 0;
+        //TODO Should also delete this contact's tags at this point
+    } else {
+        if (!$contact_id) {
+            $query = 'SELECT FirstName, LastName FROM wcgopindividualinfo WHERE info_id= ' . $info_id;
+            $result = db_query($query);
+            $info = $result->fetchObject();
+            $contact = entity_create('crm_core_contact', array('type' => 'v2individual'));
+            $wrapper = entity_metadata_wrapper('crm_core_contact', $contact);
+            $wrapper->info_id = $info_id;
+            $wrapper->contact_name->given->set($info->FirstName);
+            $wrapper->contact_name->family->set($info->LastName);
+            if (!$wrapper->info_id) {
+                $contact = entity_load_single('crm_core_contact', $contact_id);
+                $wrapper = entity_metadata_wrapper('crm_core_contact', $contact);
+            }
+            $wrapper->notes->set($form_state['input']['notes']);
+            $addedtags = array();
+            foreach ($form['table']['#value'] as $tagid) {
+                    $addedtags[] = $tagid;
+                }
+						$wrapper->field_tagswithhhsv2->set($addedtags);
+            $wrapper->save();
+            $contact_id = $wrapper->contact_id->value();
+            $form_state['build_info']['args']['0'] = $contact_id;
+            $zzz = 1;
+            // TODO: Add active tags to this contact
+        }
+
+        else {
+            if ($form_state['triggering_element']['#name'] === 'replacetags') {
+                $wrapper = entity_metadata_wrapper('crm_core_contact', $contact_id);
+                $existingtags = array();
+                $existingtags = $wrapper->field_tagswithhhsv2->value();
+                $addedtags = array();
+                foreach ($form['table']['#value'] as $tagid) {
+                    $addedtags[] = $tagid;
+                }
+                $wrapper->field_tagswithhhsv2->set($addedtags);
+                $wrapper->notes = $form_state['input']['notes'];
+                $wrapper->save();
+            }
+
+            else {
+                $wrapper = entity_metadata_wrapper('crm_core_contact', $contact_id);
+                $existingtags = array();
+                $existingtagclasses = $wrapper->field_tagswithhhsv2->value();
+                foreach ($existingtagclasses as $tagclass) {
+                    $existingtags[] = $tagclass->tid;
+                }
+                $wrapper = entity_metadata_wrapper('crm_core_contact', $contact_id);
+                foreach($form['table']['#value'] as $tagid) {
+                    if (!in_array($tagid, $existingtags)){
+                        $existingtags[] = $tagid;
+                    }
+                }
+                $wrapper->field_tagswithhhsv2->set($existingtags);
+                $wrapper->notes = $form_state['input']['notes'];
+                $wrapper->save();
+            }
+        }
+    }
+}
+function admincontacts_updateform_ajaxcallback($form, &$form_state){
+    global $user;
+    $x = 1;
+    switch($form_state['triggering_element']['#name']) {
+        case "delete" :
+        case "addcontact" :
+            $info_id = variable_get('infoid_' . $user->uid);
+            $query = 'SELECT * FROM wcgopindividualinfo WHERE ' . 'info_id = ' . $info_id;
+            $result = db_query($query);
+            $info = $result->fetchObject();
+            $addressblock = theme('admincontacts_addressblock', array(
+                    'info' => $info,
+                    'contact' => $form_state['build_info']['args']['0'],
+                    'status' => 'Blank')
+            );
+            $addressblock = '<div id=admintl>' . $addressblock . '</div>';
+            $form_state['build_info']['args']['1'] = $addressblock;
+            $form_state['build_info']['args']['2'] = $info_id;
+            $form_state['rebuild'] = TRUE;
+            $newform = drupal_rebuild_form('admincontacts_updateform', $form_state);
+            $updateformvar = render($newform);
+            $commands = array();
+            $tagblockvar = theme('admincontacts_tagblock', array(
+                    'infoid' => $info_id,
+                    'contact' => $form_state['build_info']['args']['0'],
+                    'status' => 'No assigned tags')
+            );
+            $commands[] = ajax_command_replace('#tagsl', $tagblockvar);
+            $commands[] = ajax_command_html('.updateform', $updateformvar);
+            return (array('#type' => 'ajax', '#commands' => $commands));
+            break;
+        case "replacetags" :
+        case "addtags" :
+            $x = 1;
+            $tagblockvar = theme('admincontacts_tagblock', array(
+                    'infoid' => $info_id,
+                    'contact' => $form_state['build_info']['args']['0'],
+                    'status' => 'No assigned tags')
+            );
+            $commands = array();
+            $commands[] = ajax_command_replace('#tagsl', $tagblockvar);
+            return(array('#type' => 'ajax', '#commands' => $commands));
+            break;
+    }
+
+    /**
+     * TODO: Add a save of both active tags and notes to this new contact.
+     */
+
+}
+function admincontacts_getsttable() {
+    $headers = array("ID", "Category", "Tag");
+    $rows = array();
+    $addclass = array();
+    $addclass['class'] = array('sttable');
+    $selectedtable = theme('table', array('header' => $headers,
+        'rows' => $rows, 'attributes' => $addclass));
+    return $selectedtable;
+}
+function admincontacts_changedisplay_submit($form, &$form_state){
+    $x = 1;
+    $x = $x + 1;
+    $selector = 'div.admincontactsrightcontainertagsetter';
+    $commands = array();
+    $commands[] = ajax_command_invoke($selector,'css', array('propertyName' =>'display','value' =>'none'));
+    ajax_deliver(array('#type' => 'ajax', '#commands' => $commands));
+    $x = $x +2;
+
+
+}
+
+/**
+ * Called from the voters table to fill in individual information¨
+ */
+function admincontacts_individualinfo ($type = 'ajax')
+{
+    global $user;
+    $numargs = func_get_args();
+    $info_id = $numargs[count($numargs)-1];
+    $varname = "infoid_" . $user->uid;
+    variable_set($varname, $info_id);
+    $query = 'SELECT * FROM wcgopindividualinfo WHERE ' . 'info_id = ' . $info_id;
+    $result = db_query($query);
+    $info = $result->fetchObject();
+    $query = 'SELECT * FROM crm_core_contact WHERE ' . 'info_id = ' . $info->info_id;
+    $result = db_query($query);
+    $contact = $result->fetchObject();
+    $contactarray = (array) $contact;
+    variable_set('contact' . $user->uid, $contactarray);
+    $addressblock = theme('admincontacts_addressblock', array(
+        'info' => $info,
+        'contact' => $contact->contact_id,
+        'status' => 'Blank')
+        );
+    $contactblock2 = theme('admincontacts_contactblock', array(
+        'info' => $info,
+        'contact' => $contact,
+        'status' => 'Blank')
+        );
+    $tagblockvar = theme('admincontacts_tagblock', array(
+        'infoid' => $info_id,
+        'contact' => $contact->contact_id,
+        'status' => 'No assigned tags')
+    );
+    $contact_id = ($contact ? $contact->contact_id: 0);
+    $addressblock= '<div id=admintl>' . $addressblock . '</div>';
+    $updateformvar = drupal_get_form('admincontacts_updateform', $contact_id, $addressblock, $info_id);
+    $myaddedfields = drupal_get_form('admincontacts_addedfieldsV2');
+    $div6 = render($myaddedfields);
+    $div6 = '<div id=adds class="tagtable shorttagtable">'  . $div6 . "</div>";
+    $contactblock2 = trim(str_replace(array("\r", "\n"), "", $contactblock2));
+    $div2 = '<div id=admintr>' . $contactblock2 . '</div>';
+    $div3 = $tagblockvar;
+ //   $div4 = "<h5>Activated Tags</h5>" . $activetagblockvar;
+    $div5 = render($updateformvar);
+    $commands = array();
+    $div5 = "<div class='updateform'>" . $div5 . "</div>";
+    $commands[] = ajax_command_css('.admincontactsrightcontainer', array('display' => 'inline'));
+    $commands[] = ajax_command_css('.admincontactsrightcontainertagsetter', array('display' => 'none'));
+    $commands[] = ajax_command_html('.admincontactsrightcontainer',
+        $div2 . $div3 . $div5 . $div6);
+
+
+    $page = array('#type' => 'ajax', '#commands' => $commands);
+   ajax_deliver(array('#type' => 'ajax' , '#commands' => $commands));
+}
+/**
+ * @param string $type
+ * The ajax callback routine that is invoked at the end of the form submit
+ * to put the selected voters table on the screen.
+ */
+function admincontacts_ajax_callback($type = 'ajax') {
+    $downselecttable = $_SESSION['dselect'];
+    $_SESSION['dselect'] = NULL;
+    $commands[] = ajax_command_html('div.admincontactsbottomleft',
+        $downselecttable);
+    $page = array('#type' => 'ajax' , '#commands' => $commands);
+    ajax_deliver($page);
+}

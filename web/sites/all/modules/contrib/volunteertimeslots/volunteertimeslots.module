@@ -1,0 +1,621 @@
+<?php
+
+/** 
+ * Implements hook_menu
+ */
+ 
+ function volunteertimeslots_menu() {
+ 	$items['vts-update'] = array(
+            'title' => 'This is a callback function to update the schedule page',
+            'description' => 'Callback function for the vts update page.',
+            'page callback' => 'volunteertimeslots_ajax_callback',
+            'theme callback' => 'ajax_base_page_theme', // Sets base theme to be the same as current page.
+            'access arguments' => array('access content'),
+            'type' => MENU_CALLBACK,
+  );
+  $items['vts-addslots/%'] = array(
+    'title' => '',
+    'description' => 'Callback function for the vts add slots page.',
+    'page callback' => 'vts_addslots',
+    'page arguments' => array(1),
+    'access arguments' => array('administer slots'),
+    'type' => MENU_CALLBACK,
+  ); 
+  $items['zap'] = array(
+    'title' => 'This is function to zero the session variable',
+    'description' => 'Zap the session variable.',
+    'page callback' => 'volunteertimeslots_zapsession',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+  $items['vtsintervals'] = array(
+    'title' => 'A demonstration of the vtsentity module',
+    'page callback' => 'vtsentity_vtsintervals',
+    'file' => 'vtsentity.info.inc',
+    'file path' => drupal_get_path('module', 'volunteertimeslots') . '/includes',
+    'access arguments' => array('access content'),
+  );
+  
+  $items['vtsinterval/%'] = array(
+    'title' => 'VTSInterval',
+    'page callback' => 'vtsentity_view_vtsinterval',
+    'file' => 'includes/vtsentity.info.inc',
+    'page arguments' => array(1),
+    'access arguments' => array('access content'),
+  );
+ 	return $items;
+ }
+ 
+ /**
+ *	Implements hook_permission
+ */
+ 
+function volunteertimeslots_permission () {
+ 	return array (
+ 		'administer slots' => array (
+ 			'add slots' => t('Add time slot elements'),
+ 			'description' => t('Add time slot elements to the data array'),
+ 		), 
+ 	);
+ }
+ /*
+  *     Implements hook_views_api
+  */
+function volunteertimeslots_views_api() {
+    return array(
+        'api' => 3,
+        'path' => drupal_get_path('module','volunteertimeslots') . '/views',
+    );
+}
+  function volunteertimeslots_views_pre_render(&$view) {
+        $a = 1;
+        if ($view->name == 'vtsdailyview') {        
+            drupal_add_js('misc/ajax.js');
+            drupal_add_css(drupal_get_path('module','volunteertimeslots') . '/css/volunteertimeslots.css');
+            $myentity = entity_load('vtsinterval');
+            /*  This foreach loop is a crude way to accomplish what
+             *  I'm trying to do, which is get the EventID for this day.
+             *  I need the EventID so that I can route viewers to the
+             *  correct event in the link below the daily schedule.  Entities
+             *  have an EntityFieldQuery method that I should use to get
+             *  this information instead of just spinning through all vtsinterval
+             *  entities until I find one with the right day.  However,
+             *  I didn't want to take the time to learn how to use this method
+             *  so I just implemented this loop.
+             */
+            foreach ($myentity as $interval ){
+                if ($interval->EventDay == $view->args[0]) {
+                    $EventID = $interval->EventID;
+                    break;
+                }
+            }
+        $view->attachment_after = '<span><h2>' . l('Sign up for a different day', 'vtsviews/' . $EventID, array('attributes' => array('class' => 'otherdays')));
+        $view->attachment_after .=  l('Look at other events', 'vtsvolunteerevents/', array('attributes' => array('class' => 'otherevents'))) . '</h2></span>';
+
+        }
+    if ($view->name == 'vtseventday') {
+        $topstuff = vts_dailyheader($view->args[0], $view);
+        $view->attachment_before = $topstuff['connect'];
+        $view->attachment_after = $topstuff['nickname'];
+    }
+  }
+  /*
+   *    A helper routine to create the html that will be displayed in the header of
+   *    the vtsdailyview view
+   */
+    function vts_dailyheader($day, $view) {
+        global $user;
+        global $base_url;
+        if (isset($_SESSION['vtsusrobj'])) {
+            $vtsusrobj = $_SESSION['vtsusrobj'];
+//            $query = 'SELECT * FROM {gopuser} WHERE email LIKE ' . 'CONCAT(\'a@mic4l.com\'' . ',\'%\')';
+            $query = 'SELECT * FROM {gopuser} WHERE email LIKE ' . 'CONCAT(\'' . $vtsusrobj->email . '\',\'%\') ';
+            $b = 1;
+            if ( ($vtsusrobj->email != '') && ( $vtsusrobj->handle == '' ) )
+                {
+                    $result = db_query($query,array(':usremail' => $vtsusrobj->email));
+                    if ($record = $result->fetchObject()) {
+			$vtsusrobj->handle = $record->handle;
+                    }
+                }               
+        }
+        /*
+         *  If we did not have a vtsusrobj then we now
+         *  construct one.  Note that the email address here
+         *  is the one found in the gopuser table.  If
+         *  this is an anonymous user coming here for the first
+         *  time, we will ask for the email in the Connect link.
+         *  On subsequent returns to this code, the user will
+         *  have provided an e-mail and it will have been stored
+         *  in the vtsuserobj.
+         * 
+         *  The reason we're doing it this way is to make it possible
+         *  for users to use the volunteer time slot system without
+         *  logging in to our site.
+         */
+	if ( !isset($vtsusrobj) ) {
+ 		$vtsusrobj = new stdClass();
+    $query = 'SELECT * FROM {gopuser} WHERE email LIKE ' . 'CONCAT(\'' .
+    		$user->mail . '\',\'%\') ';
+    $record = new stdClass();
+    $vtsusrobj->dayid = $day;
+    $result = db_query($query);
+    if ($user->mail != '') {
+       if ($record = $result->fetchObject()) {
+					$vtsusrobj->email = $user->mail;
+					$vtsusrobj->handle = $record->handle;
+       }
+		}
+		
+ 	  $_SESSION['vtsusrobj']= $vtsusrobj;
+
+   }
+  $vtstoplinks = array();
+            
+/*
+*     Create the Connect (or Disconnect) link
+*/
+            $vtshdr = '<div class=vtstoplink>';
+/*
+*						If the user has a handle, just set the link to Disconnect
+*/
+            if ($vtsusrobj->handle != '') {
+                $vtshdr .= '<a href=' . $base_url . '/zap>Disconnect</a></div';
+/*
+*						If the user doesn't have a handle, but does have an email address
+*						then ask them to supply a nickname
+*/
+            } elseif ($vtsusrobj->email != '') {
+            	$result = db_query("
+					SELECT * FROM {gopuser}
+					WHERE email LIKE CONCAT(:usremail,'%')" ,
+					array(':usremail' => $vtsusrobj->email));
+					if ($record = $result->fetchObject()){	
+									watchdog('popup_forms','Line 174');				
+            			popup_forms_parent_js();
+            			$js = "
+      					(function($) {
+        				$(document).ready(function() {
+          				popupFormsFormShow('vtspopups_nickname_form', null, {}, {});
+        				});
+      					})(jQuery);
+   				 		";
+    					drupal_add_js($js, 'inline');
+    					} else {
+    						drupal_goto('BV');
+    					}
+/*
+*						If the user has neither an email address nor a handle, then ask them
+*						to log in to the system using the popup window
+*/
+            	} else {
+	        	$vtshdr .= popup_forms_build_link('vtspopups_login_form','Connect');
+	        	$vtshdr .= '</div>';
+	        	
+
+            }
+/*
+*						Create the content for the nickname area in the view
+*/
+            $vtsnickname = '<div class = vtstopnickname>';
+            if ( $vtsusrobj->handle != ''){
+                $vtsnickname .= 'Nickname:   ' . $vtsusrobj->handle . '</div>';
+            } else {
+                $vtsnickname .= 'You need to tell us who you are before you can
+                  volunteer. <p> Please click on the Connect link just above the
+                  event title to sign in to the system.</p>';
+            }
+            $vtstoplinks['connect'] = $vtshdr;
+            $vtstoplinks['nickname'] = $vtsnickname;
+
+            return $vtstoplinks;
+        
+    }
+
+/**
+*		This little stub of a function just returns the current users handle
+*/
+function volunteertimeslots_ajax_callback($type='ajax')  {
+		if ($type == "nojs") {
+		$output = "Javascript is not running";
+		return $output;
+		}
+                drupal_add_js('misc/ajax.js');
+		global $user;
+                global $base_url;
+                if (!isset($vtsusrobj))
+                    $vtsusrobj = $_SESSION['vtsusrobj'];
+
+		$usrHandle = $vtsusrobj->handle;
+		$myitemID = $_GET['itemID'];
+                $myitemslot = $_GET['itemslot'];
+                
+                $myentity = entity_load('vtsinterval',array($myitemID));
+                $myupdateentity = $myentity[$myitemID];
+                $itemHandle = $myupdateentity->{'handle' . $myitemslot};
+                
+		$rplHandle = vts_getReplacementHandle($usrHandle,$itemHandle, $vtsusrobj);  //The value of the new handle
+              
+                $myupdateentity->{'handle' . $myitemslot} = $rplHandle;
+                $myupdateentity->save();
+                
+                $commands = array();
+//    $commands[] = ajax_command_alert('This is just a test');
+		$commands[] = ajax_command_html('.vtsclass' . $myitemID . '_' . $myitemslot, $rplHandle);
+		$page = array('#type' => 'ajax', '#commands' => $commands);
+		ajax_deliver($page);
+}
+function vts_addslots($arg1) {
+	$node = node_load($arg1);
+	$output = '';
+		$eventIDarr = field_get_items('node',$node,'field_vtsevent');
+		$eventID = $eventIDarr[0]['target_id'];
+	 	$startTimearr = field_get_items('node',$node,'field_vtsstarttime');
+		$startTime = $startTimearr[0]['value'];
+	 	$endTimearr = field_get_items('node',$node,'field_vtsendtime');
+		$endTime = $endTimearr[0]['value'];
+	 	$numVolSlotsarr = field_get_items('node',$node,'field_vtsslots');
+	 	$numVolSlots = $numVolSlotsarr[0]['value'];
+	 	$slotTimeIntervalarr = field_get_items('node',$node,'field_vtsinterval');
+	 	$slotTimeInterval = $slotTimeIntervalarr[0]['value'];
+		$output	= '<br><h2>I am in the addslots routine with an argument of ' . $arg1;
+		$output .= '<br>The event is ' .  $eventID;
+		$output .= '<br>The start time is:  ' . $startTime;
+		$output .= '<br>The end time is ' . $endTime;
+		$output .= '<br>The number of slots is ' . $numVolSlots;
+		$output .= '<br>The slot interval is: ' . $slotTimeInterval;
+
+        for ($time = $startTime; $time < $endTime; $time = $time + 60*$slotTimeInterval) {
+            $myentity = entity_create('vtsinterval',array());
+            $myentity->timestart = $time;
+            $myentity->timeend = $time + 60*$slotTimeInterval;
+            $myentity->EventID = $eventID;
+            $myentity->EventDay = $arg1;
+            for ($j = 1; $j < $numVolSlots + 1; $j++){
+                $myentity->{"handle" . $j} = "Open";       
+           }
+            $myentity->save();
+        }
+//	for ($time = $startTime; $time < $endTime ; $time = $time + 60*$slotTimeInterval) {
+	
+	
+//		$slotstart = $time;
+//		$slotend = $time + $slotTimeInterval * 60;
+
+//		for($volslot=1; $volslot <= $numVolSlots; $volslot++) {
+
+//                    $tblrow = db_insert('volunteertimeslots_slotdata')
+//			->fields(array(
+//					'slotstart' => $slotstart,
+//					'slotend' => $slotend,
+//					'eventID' => $eventID,
+//					'eventDay' => $arg1,
+//					'vsnumber' => $volslot,
+//					'handle' => 'Open',
+//					))
+//				->execute();
+//
+//			$output .= '<br>'. $eventID . ' ' . $arg1 .' ' .' ' . $slotstart . ' ' . $slotend . ' ' . $volslot. ' ' . 'Open';
+//				$output .= '<br> The table insert row is ' . $tblrow;
+//		}
+
+//	}
+	
+return render($output);
+
+}
+function getvtsusrcreds($user, &$vtsusrobj) {
+	if ($user->uid != 0 ) {
+/*
+*		The is the case where the user is logged in.  
+*/
+	$vtsusrobj->email = $user->mail;	
+	$result = db_query("
+		SELECT * FROM {gopuser}
+		WHERE email LIKE CONCAT(:usremail,'%')" ,
+		array(':usremail' => $user->mail));
+		if ($record = $result->fetchObject()) {
+			$vtsusrobj->email = $user->mail;
+			$vtsusrobj->handle = $record->handle;
+		}
+	}
+	else {
+	
+	/*
+	*		This is the anonymous user case.  The login popup form's submit routine
+	*		will have stored the user's entry in the $vtsuserobj, so we start by
+	*		checking to see if the user entered anything.
+	*/
+	
+	if ($vtsusrobj->email != "") {       //Has user entered an email?
+			$matchvalue = $vtsusrobj->email;
+			$result = db_query("
+			SELECT * FROM {gopuser}
+			WHERE email LIKE CONCAT(:usremail,'%')",
+			array('usremail' => $matchvalue));
+			if ($record = $result->fetchObject()) {
+					$vtsusrobj->email = $record->email;
+					$vtsusrobj->handle = $record->handle;
+					if ($vtsusrobj->handle){
+						drupal_goto('vtsdailyview/' . $vtsusrobj->dayid);
+					}
+			}
+		}	
+/*		NOTE [8/19/2018]:  This is an unhandled case.  The user is not logged in,
+*			but has entered an email address, and that email address is NOT in the
+*			gopuser table.  I think what I ought to do in this case is update the
+*			gopuser table to include this new email address, and then just fall
+*			through this routine.  If I am right, the next thing that will happen
+*			is the code below this note, which will set the url to the daily
+*			sign in sheet, and then pop up the nickname form.
+*/
+			popup_forms_parent_js();
+			$js = "
+      		(function($) {
+          	popupFormsFormShow('vtspopups_nickname_form', null);
+      		})(jQuery);
+    		";
+    		drupal_add_js($js, 'inline');
+}			
+/*		$options = array(
+				'attributes' => array('class' => array('popup-forms-hotlink')),
+				'data-popup-forms' => 'vtspopups_nickname_form',
+				'destination' => 'vtsdailyviews/' . $vtsusrobj->dayid
+				);
+			$gourl = url('/form/vtspopups_nickname_form', $options);
+			watchdog('vts', "Line 342");
+			drupal_goto($gourl, $options);
+
+*/			
+/*
+*			NOTE [7/11/17]:  This is the case in which the user is not logged in,
+*			whose email address was in the gopuser table, but for whom there is no
+*			handle yet.  For now, I'm just sending them to the Booth Volunteer [BV]
+*			page, but I probably should figure out a way of letting them supply their
+*			own handle. [All I need to do is figure out how to put up the nickname
+*			popup form, without forcing the user to click on a link]
+*
+*			NOTE: [7/15/17]  I figured out how to bring up the nickname popup form
+*			so now I'm doing that.
+*/
+//			$gourl = url('vtsdailyview/' . $vtsusrobj->dayid . '?pfnickname=1');
+//			$options=array('query' => array('pfnickname' => '1'));
+//			drupal_goto($gourl, $options);
+/*
+*			NOTE:  The code below is what I first tried in order to bring up the
+*			nickname popup form on the page.  This DOES bring up the form, but
+*			NOT as a popup, so I ended up using the code above.  I believe that this
+*			fails to bring up the form as a popup because the Javascript to load the
+*			form as a popup never is put on the page.  [In the code above, this
+*			script gets loaded on the page by the vtspopups_init function, but that
+*			does not happen here.]
+*
+*			$gourl = 'form/vtspopups_nickname_form';
+*			$options=array('query' => array('destination' => $vtsusrobj->dayid));
+*			drupal_goto($gourl);
+*/
+/*
+*			NOTE [7/11/17]:  This is the case in which the user is not logged in, but
+*			did not enter an email address in the popup login form.  We just send them
+*			back to the dailyview page [where, presumably, they will figure out that
+*			they need to provide us with an email address].
+*/
+//			drupal_goto('vtsdailyview/' . $vtsusrobj->dayid);
+/*
+*			NOTE [7/11/17]:  This is the case in which the user is logged in but whose
+*			email address on our site does not match anything in the gopuser table.
+*			I'm just going to send them to BV for now, but there may be something
+*			a good deal more complex that I could do [like enter their site email in
+*			the gopuser table and then give them an opportunity to pick a nickname]?
+*/
+//		drupal_goto('BV');
+}
+
+function setvtsusrcreds($user,&$vtsuser)  {
+global $user;
+
+/*		
+		First check to see if this Nickname has been used before
+		(For now, just return if it has)
+*/		
+$result = db_query("
+		SELECT * FROM {gopuser}
+		WHERE handle = :hdl ",
+		array(':hdl' => $vtsuser->handle));
+		
+
+if ($result->fetchObject()) {
+	$vtsuser->invalidnickname = TRUE;
+	return;	
+}
+/*
+*
+*		This code is operating under the assumption that the email that was entered
+*		must be in the gopuser table.  If that is not the case, then no update to
+*		gopuser will take place. [8/19/2018] Note, however, that we will now return
+*		to the nickname popup submit routine, and that routine will proceed as
+*		an update HAD been made.  The result is that we will have a user handle
+*		for which there is no entry in the gopuser table.
+*/
+$numupdated = db_update('gopuser')
+		->fields(array(
+			'handle' => $vtsuser->handle,
+                            )
+                        )
+		->where("email LIKE CONCAT(:usremail, '%')",
+			array(':usremail' => $vtsuser->email))
+		->execute();
+		
+
+return;
+}
+
+/**
+*			This routine returns the new handle for the time slot that the user
+*			clicked on.  $usrHandle is the user's handle, $handle is what is already
+*			there.
+*/
+
+function vts_getReplacementHandle($usrHandle, $handle, &$vtsusrobj) {
+	$a = 1;
+	if ($usrHandle == '') {
+		return $handle;		// If usrHandle is null, make no change	
+	}
+	if ($handle == 'Open') {
+		return $usrHandle;
+	}
+	if ($handle == $usrHandle) {
+		return 'Open';		// Clicking on a handle we have already selected should unvolunteer us
+	} else {
+		return $handle;		// Cannot change somebody else's handle	
+	}
+}
+function volunteertimeslots_zapsession()  {
+global $base_url;
+		$_SESSION['vtsusrobj']= NULL;
+//		session_destroy();
+		cache_clear_all(NULL,'cache_page');
+		drupal_goto('<front>');
+}
+/*
+ *  Implements hook_login.  Eliminate any session variable
+ *  that might be hanging around when a user logs in.  This 
+ *  prevents an incomplete vtsusrobj from remaining in the
+ *  system and being used when another user logs in on the
+ *  same session.
+ */
+function volunteertimeslots_user_login () {
+    $_SESSION = array();
+    cache_clear_all(NULL, 'cache_page');
+            
+}
+/*
+*		Implments hook_form_alter
+*/
+function vtspopups_form_alter(&$form, &$form_state, $form_id) {
+	
+	if( $form_id == "vtspopups_nickname_form") {
+			$vtsuser = $_SESSION['vtsusrobj'];
+			if ($vtsuser->invalidnickname ) {
+			   $form['arg']['#title'] = 'We are sorry, but that nickname has already been taken.  Please choose another one';	
+		  }
+	}
+}
+/**
+ * Implements hook_entity_info() for the entity [vtsinterval]
+ * that is used by the volunteertimeslots moldule.
+ */
+    function volunteertimeslots_entity_info() {
+      $info = array();
+      $info['vtsinterval'] = array(
+        'label' => t('VTSinterval'),
+        'access arguments' => array('administer users'),
+        'label callback' => 'vtsentity_label_callback',
+        'base table' => 'vtsentity_vtsintervals',
+        'entity keys' => array(
+          'id' => 'id',
+          'label' => 'id', 
+        ),
+        'entity class' => 'vtsintervalEntity',
+        'controller class' => 'vtsintervalEntityController',
+        'access callback' => 'vtsentity_access_callback',
+        'uri callback' => 'entity_class_uri',
+//    'admin ui' => array(
+//      'path' => 'admin/vtsintervals',
+//      'controller class' => 'EntityDefaultUIController',
+//        ),
+        'fieldable' => TRUE,
+        'bundles' => array(
+          'vtsinterval' => array(
+            'label' => t('vtsinterval'),
+//            'admin' => array(
+//            'path' => 'admin/vtsintervals',
+//            ),
+          ),
+        ),
+        'views controller class' => 'EntityDefaultViewsController',
+        'module' => 'volunteertimeslots',
+        );
+      
+      return $info;
+}
+
+/**
+ * Implements hook_entity_property_info() for the entity [vtsinterval]
+ * that is used by the volunteertimeslots module.
+ */
+    function volunteertimeslots_entity_property_info() {
+        
+      $info = array();
+      
+      $info['vtsinterval']['properties']['EntityID'] = array(
+        'name' => 'EntityID',
+        'label' => t('VTSInterval ID'),
+        'description' => t('The ID of the VTSInterval.'),
+        'type' => 'integer',
+        'schema field' => 'id',
+      );
+      
+      $info['vtsinterval']['properties']['EventID'] = array(
+        'label' => t('EventID'),
+        'description' => t('The event to which this interval is attached'),
+        'type' => 'node',
+        'bundle' => 'voluntertimeslotevent',
+        'schema field' => 'EventID',
+      );
+      $info['vtsinterval']['properties']['EventDay'] = array(
+        'label' => t('EventDay'),
+        'description' => t('The day to which this interval is attached'),
+        'type' => 'integer',
+        'schema field' => 'EventDay',
+      );
+      $info['vtsinterval']['properties']['timestart'] = array(
+        'label' => t('Start Time'),
+        'description' => t('The start time for this interval'),
+        'type' => 'date',
+        '[granularity][month]' => 'month',
+        '[granularity][day]' => 'day',
+        '[granularity][hour]' => 'hour',
+         '[granularity][minute]' => 'minute',
+         '[granularity][year]' => 'year',
+        'schema field' => 'timestart',
+      );
+      $info['vtsinterval']['properties']['timeend'] = array (
+         'label' => t('End Time'),
+         'description' => t('The end time for this interval'),
+         'type' => 'date',
+         'schema field' => 'timeend',
+      );
+      $info['vtsinterval']['properties']['handle1'] = array (
+          'label' => t('handle1'),
+          'description' => t('The first handle'),
+          'type' => 'text',
+          'schema field' => 'handle1'
+      );
+      $info['vtsinterval']['properties']['handle2'] = array (
+          'label' => t('handle2'),
+          'description' => t('The second handle'),
+          'type' => 'text',
+          'schema field' => 'handle2'
+      );
+      $info['vtsinterval']['properties']['handle3'] = array (
+          'label' => t('handle3'),
+          'description' => t('The third handle'),
+          'type' => 'text',
+          'schema field' => 'handle3'
+      );
+      $info['vtsinterval']['properties']['handle4'] = array (
+          'label' => t('handle4'),
+          'description' => t('The fourth handle'),
+          'type' => 'text',
+          'schema field' => 'handle4'
+      );
+      $info['vtsinterval']['properties']['handle5'] = array (
+          'label' => t('handle5'),
+          'description' => t('The fifth handle'),
+          'type' => 'text',
+          'schema field' => 'handle5'
+      );
+      
+      return $info;
+}

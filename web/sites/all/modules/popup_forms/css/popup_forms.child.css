@@ -1,0 +1,57 @@
+.clearfix:after {
+  clear: both;
+  content: ".";
+  display: block;
+  font-size: 0;
+  height: 0;
+  visibility: hidden;
+}
+
+.clearfix {
+  display: block;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+html body {
+  background: none;
+}
+
+.popup-forms-dialog-wrapper {
+  filter: progid:DXImageTransform.Microsoft.Alpha(opacity=0);
+  opacity: 0 !important;
+}
+
+.popup-forms-dialog-wrapper.visible {
+  filter: progid:DXImageTransform.Microsoft.Alpha(opacity=1);
+  opacity: 1 !important;
+}
+
+.ui-dialog .ui-dialog-titlebar { 
+	padding: .4em 1em; 
+	position: relative; 
+	border: 1px solid #336666; 
+	background: #66ffff url('http://www.wash-gop.com/files/logoR.png') 0% 50% no-repeat; 
+}
+
+.ui-dialog  {
+	border: 6px solid #ffff00; 
+
+}
+
+
+.ui-widget-header {
+	color: yel
+	background: '';	
+}
+
+.ui-dialog.popup_forms-dialog {
+  width: auto !important;
+}
+
+.popup-forms-container {
+  height: auto !important;
+}

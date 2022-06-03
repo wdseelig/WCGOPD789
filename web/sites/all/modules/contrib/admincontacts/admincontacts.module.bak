@@ -1,0 +1,44 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * A module to administer WCGOP contacts.
+ */
+
+
+/**
+ * Implements hook_menu().
+ */
+function admincontacts_menu() {
+  $items['admincontacts'] = array(
+    'title' => 'Administer Contacts',
+    'description' => 'A module to administer WCGOP contacts',
+    'page callback' => 'admincontacts_page',
+    'access arguments' => array('access content'),
+  );
+  return $items;
+}
+function admincontacts_theme (){
+	return array(
+		'admincontacts_tpl' => array(
+			'arguments' => array('output' => NULL),
+			'path' => drupal_get_path('module', 'admincontacts') . '/theme',
+			'template' => 'admincontacts'
+		),
+	);
+}
+
+/**
+ * Administrative routines.
+ */
+function admincontacts_page() {
+  $output = 'Here is some preliminary stuff for admincontacts';
+  $output = theme('admincontacts_tpl',array('output' => 'Just some stuff));
+  
+  
+  
+  return $output;
+}
+
+

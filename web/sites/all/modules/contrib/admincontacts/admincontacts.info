@@ -1,0 +1,5 @@
+; $Id$
+name = AdminContacts
+description = Administer the WCGOP Contacts Database
+package = WCGOP
+core = 7.x

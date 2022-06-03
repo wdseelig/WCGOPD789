@@ -1,0 +1,11 @@
+name = Popup Forms
+description = API to show forms in jQuery Popups
+package = Popup Forms
+core = "7.x"
+
+; Information added by Drupal.org packaging script on 2015-04-08
+version = "7.x-1.1+1-dev"
+core = "7.x"
+project = "popup_forms"
+datestamp = "1428494283"
+

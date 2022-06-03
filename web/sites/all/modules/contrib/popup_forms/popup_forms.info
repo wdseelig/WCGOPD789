@@ -1,0 +1,4 @@
+name = Popup Forms
+description = API to show forms in jQuery Popups
+package = Popup Forms
+core = "7.x"
